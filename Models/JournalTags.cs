@@ -2,7 +2,7 @@
 
 namespace JournalApp.Models;
 
-public class JournalTag
+public class JournalTags
 {
     [Indexed]
     public int JournalEntryId { get; set; }

@@ -2,7 +2,7 @@
 
 namespace JournalApp.Models;
 
-public class Tag
+public class Tags
 {
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }

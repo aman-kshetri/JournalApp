@@ -1,6 +1,6 @@
 ﻿namespace JournalApp.Models;
 
-public enum MoodCategory
+public enum Moods
 {
     Negative = 0,
     Neutral = 1,
