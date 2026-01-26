@@ -15,9 +15,15 @@ namespace JournalApp
                 });
 
             builder.Services.AddMauiBlazorWebView();
+            builder.Services.AddSingleton<JournalApp.Data.AppDatabase>();
+            builder.Services.AddSingleton<JournalApp.Services.IMoodsService, JournalApp.Services.MoodsService>();
+            builder.Services.AddSingleton<JournalApp.Services.ITagsServices, JournalApp.Services.TagsServices>();
+            builder.Services.AddSingleton<JournalApp.Services.IUsersService, JournalApp.Services.UsersService>();
+            builder.Services.AddSingleton<JournalApp.Services.IThemeService, JournalApp.Services.ThemeService>();
+
 
 #if DEBUG
-    		builder.Services.AddBlazorWebViewDeveloperTools();
+            builder.Services.AddBlazorWebViewDeveloperTools();
     		builder.Logging.AddDebug();
 #endif
 
