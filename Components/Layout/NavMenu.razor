@@ -1,43 +1,43 @@
-﻿<div class="top-row ps-3">
-    <h4 class="brand">MyJournal</h4>
-</div>
+﻿@inject NavigationManager NavigationManager
+@inject IThemeService ThemeService
 
-<nav class="nav-scrollable">
-    <div class="nav-item px-3">
-        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-            <span class="bi bi-speedometer2"></span> Dashboard
+<nav class="nav-menu">
+    <div class="brand">
+        Journal
+    </div>
+
+    <div class="nav-section">
+        <NavLink href="" Match="NavLinkMatch.All" class="nav-link">
+            🏠 Home
+        </NavLink>
+
+        <NavLink href="calendar" class="nav-link">
+            📅 Views
+        </NavLink>
+
+        <NavLink href="journal" class="nav-link">
+            ✍️ Journal
         </NavLink>
     </div>
 
-    <div class="nav-item px-3">
-        <NavLink class="nav-link" href="journal">
-            <span class="bi bi-pencil-square"></span> Today
-        </NavLink>
-    </div>
-
-    <div class="nav-item px-3">
-        <NavLink class="nav-link" href="calendar">
-            <span class="bi bi-calendar-event"></span> Calendar
-        </NavLink>
-    </div>
-
-    <div class="nav-item px-3">
-        <NavLink class="nav-link" href="timeline">
-            <span class="bi bi-clock-history"></span> Timeline
-        </NavLink>
-    </div>
-
-    <hr />
-
-    <div class="nav-item px-3">
-        <NavLink class="nav-link" href="analytics">
-            <span class="bi bi-bar-chart-fill"></span> Analytics
-        </NavLink>
-    </div>
-
-    <div class="nav-item px-3">
-        <NavLink class="nav-link" href="settings">
-            <span class="bi bi-gear-fill"></span> Settings
-        </NavLink>
+    <div class="nav-footer">
+        <button class="nav-link theme-toggle" @onclick="ToggleTheme">
+            @(isDarkMode ? "🌙 Dark" : "☀️ Light")
+        </button>
     </div>
 </nav>
+
+@code {
+    private bool isDarkMode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isDarkMode = await ThemeService.IsDarkMode();
+    }
+
+    private async Task ToggleTheme()
+    {
+        await ThemeService.ToggleTheme();
+        isDarkMode = await ThemeService.IsDarkMode();
+    }
+}

@@ -1,13 +1,14 @@
-﻿using SQLite;
+using SQLite;
 
 namespace JournalApp.Models;
 
 public class Tags
 {
     [PrimaryKey, AutoIncrement]
-    public int Id { get; set; }
+    public int Id {get; set;}
 
     [Unique]
-    [NotNull]
-    public string Name { get; set; } = string.Empty;
+    public String Name {get; set;}
+
+    public bool IsPrebuilt { get; set; } = false;
 }

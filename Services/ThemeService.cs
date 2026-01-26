@@ -1,4 +1,4 @@
-﻿using Microsoft.JSInterop;
+using Microsoft.JSInterop;
 using Microsoft.Maui.Storage; // Explicitly add this
 
 namespace JournalApp.Services;
@@ -24,9 +24,9 @@ public class ThemeService : IThemeService
     {
         var currentTheme = Preferences.Get(ThemeKey, "light");
         var newTheme = currentTheme == "light" ? "dark" : "light";
-
+        
         Console.WriteLine($"[ThemeService] Toggling theme from {currentTheme} to {newTheme}");
-
+        
         Preferences.Set(ThemeKey, newTheme);
         await _jsRuntime.InvokeVoidAsync("document.documentElement.setAttribute", "data-theme", newTheme);
     }

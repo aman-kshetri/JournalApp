@@ -1,4 +1,4 @@
-﻿using SQLite;
+using SQLite;
 using JournalApp.Models;
 
 namespace JournalApp.Data
@@ -29,7 +29,7 @@ namespace JournalApp.Data
             await _database.CreateTableAsync<MoodDetail>();
 
             await SeedMoods();
-
+            
             Console.WriteLine("Database and tables created successfully");
         }
 
@@ -60,11 +60,11 @@ namespace JournalApp.Data
                     new MoodDetail { Name = "Frustrated", Emoji = "😤", Category = Moods.Negative },
                     new MoodDetail { Name = "Lonely", Emoji = "🥀", Category = Moods.Negative }
                 };
-
+                
                 await _database.InsertAllAsync(defaults);
             }
         }
-
+        
         public SQLiteAsyncConnection Database => _database;
     }
 }

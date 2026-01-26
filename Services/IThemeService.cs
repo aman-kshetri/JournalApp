@@ -1,4 +1,4 @@
-﻿namespace JournalApp.Services;
+namespace JournalApp.Services;
 
 public interface IThemeService
 {

@@ -1,4 +1,4 @@
-﻿using JournalApp.Data;
+using JournalApp.Data;
 using JournalApp.Models;
 
 namespace JournalApp.Services;
@@ -31,7 +31,7 @@ public class UsersService : IUsersService
         // let's stick to the model which says 'int Pin'. 
         // Although PINs with leading zeros might be an issue with 'int', 
         // the user model defined it as int. I will parse it.
-
+        
         if (int.TryParse(pin, out int pinVal))
         {
             var user = await _db.Database.Table<Users>().FirstOrDefaultAsync();

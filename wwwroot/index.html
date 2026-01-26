@@ -3,11 +3,11 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>JournalApp</title>
+    <title>journal-app</title>
     <base href="/" />
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />
-    <link rel="stylesheet" href="JournalApp.styles.css" />
+    <link rel="stylesheet" href="journal-app.styles.css" />
     <link rel="icon" href="data:,">
 </head>
 
@@ -24,7 +24,36 @@
     </div>
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script>
+        window.editorHelpers = {
+            execFormat: function(command, value) {
+                document.execCommand(command, false, value);
+                // Ensure focus remains
+                const editor = document.querySelector('.journal-editor-wysiwyg');
+                if (editor) editor.focus();
+            },
+            getContent: function(element) {
+                return element.innerHTML;
+            },
+            setContent: function(element, content) {
+                if (element && element.innerHTML !== content) {
+                    element.innerHTML = content;
+                }
+            }
+        };
 
+        window.downloadFile = (filename, contentType, content) => {
+            const file = new File([content], filename, { type: contentType });
+            const exportUrl = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = exportUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(exportUrl);
+        };
+    </script>
 </body>
 
 </html>

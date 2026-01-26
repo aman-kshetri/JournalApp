@@ -1,4 +1,4 @@
-﻿namespace JournalApp.Models;
+namespace JournalApp.Models;
 
 public enum Moods
 {

@@ -1,0 +1,362 @@
+@page "/journal/{Date:datetime?}"
+@using JournalApp.Models
+@using JournalApp.Services
+@inject IJournalsServices JournalsService
+@inject ITagsServices TagsService
+@inject IJournalTagsServices JournalTagsService
+@inject NavigationManager NavigationManager
+
+@inject IJSRuntime JSRuntime
+
+<div class="journal-entry-container">
+    @if (ErrorMessage != null)
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+    <div class="header">
+        <h2>@(EntryDate.ToShortDateString())</h2>
+    </div>
+
+    <!-- Mood Summary Card -->
+    <div class="mood-summary-card" @onclick="NavigateToMoods">
+        <div class="primary-mood">
+            <span class="mood-emoji-large">@CategoryEmoji</span>
+            <div class="mood-info">
+                <span class="label">@CurrentJournal.Mood.ToString()</span>
+                <span class="value">@GetMoodDetailsString()</span>
+            </div>
+        </div>
+        
+        <div class="chevron">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="editor-container">
+
+        <div class="toolbar">
+            <button class="toolbar-btn" @onmousedown:preventDefault @onclick='() => ExecFormat("bold")' title="Bold"><b>B</b></button>
+            <button class="toolbar-btn" @onmousedown:preventDefault @onclick='() => ExecFormat("italic")' title="Italic"><i>I</i></button>
+            <button class="toolbar-btn" @onmousedown:preventDefault @onclick='() => ExecFormat("formatBlock", "<h1>")' title="Heading 1">H1</button>
+            <button class="toolbar-btn" @onmousedown:preventDefault @onclick='() => ExecFormat("formatBlock", "<h2>")' title="Heading 2">H2</button>
+            <button class="toolbar-btn" @onmousedown:preventDefault @onclick='() => ExecFormat("insertUnorderedList")' title="List">▪</button>
+            <div class="spacer"></div>
+        </div>
+
+        <div class="journal-editor-wysiwyg" 
+             contenteditable="true" 
+             @ref="EditorRef"
+             @oninput="OnContentInput" 
+             @onblur="OnContentBlur">
+        </div>
+    </div>
+
+    <div class="tags-section">
+        <div class="section-header">
+            <h3>Tags</h3>
+            <button class="add-tag-btn-icon" @onclick="() => ShowAddTag = !ShowAddTag">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
+                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                  <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="tags-list">
+            @foreach (var tag in SelectedTags)
+            {
+                <span class="tag-chip">
+                    @tag.Name
+                    <button class="remove-tag-btn" @onclick="() => RemoveTag(tag)">×</button>
+                </span>
+            }
+        </div>
+
+        @if (ShowAddTag)
+        {
+            <div class="tag-selector-overlay">
+                <div class="tag-create-row">
+                    <input @bind="NewTagName" @bind:event="oninput" @onkeyup="HandleTagInputKeyUp" placeholder="Tag Name" class="tag-input" />
+                    <button class="btn btn-sm btn-primary" @onclick="AddTag">Add</button>
+                </div>
+
+                <div class="tag-categories">
+                    <div class="tag-category">
+                        <h4>Suggested</h4>
+                        <div class="tag-cloud">
+                             @foreach (var tag in AvailableTags.Where(t => t.IsPrebuilt))
+                             {
+                                 <button class="tag-choice @(IsTagSelected(tag) ? "selected" : "")" @onclick="() => ToggleTag(tag)">
+                                     <span>@tag.Name</span>
+                                 </button>
+                             }
+                        </div>
+                    </div>
+                    
+                    <div class="tag-category">
+                        <h4>My Tags</h4>
+                        <div class="tag-cloud">
+                             @foreach (var tag in AvailableTags.Where(t => !t.IsPrebuilt))
+                             {
+                                 <button class="tag-choice @(IsTagSelected(tag) ? "selected" : "")" @onclick="() => ToggleTag(tag)">
+                                     <span>@tag.Name</span>
+                                 </button>
+                             }
+                             @if (!AvailableTags.Any(t => !t.IsPrebuilt))
+                             {
+                                 <span class="text-muted small">No custom tags yet.</span>
+                             }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="actions">
+        <button class="btn btn-primary save-btn" @onclick="SaveEntry">Save</button>
+        @if (CurrentJournal.Id != 0)
+        {
+            <button class="btn btn-danger delete-btn" @onclick="DeleteEntry">Delete</button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public DateTime? Date { get; set; }
+
+    private Journals CurrentJournal { get; set; } = new Journals();
+    private DateTime EntryDate => Date ?? DateTime.Today;
+
+    private string? ErrorMessage;
+
+    // Tags
+    private List<Tags> SelectedTags { get; set; } = new List<Tags>();
+    private List<Tags> AvailableTags { get; set; } = new List<Tags>();
+    private string NewTagName { get; set; } = string.Empty;
+    private bool ShowAddTag { get; set; } = false;
+
+    private ElementReference EditorRef;
+    private bool _shouldRefreshEditor;
+
+    private async Task ExecFormat(string command, string? value = null)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("editorHelpers.execFormat", command, value);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Formatted Error: {ex.Message}");
+        }
+    }
+
+    private void OnContentInput(ChangeEventArgs e)
+    {
+        // Keep synchronous to avoid warning
+    }
+    
+    private async Task OnContentBlur()
+    {
+        CurrentJournal.Content = await JSRuntime.InvokeAsync<string>("editorHelpers.getContent", EditorRef);
+    }
+    
+    // When saving, make sure we have the latest
+    private async Task UpdateContentModel()
+    {
+        CurrentJournal.Content = await JSRuntime.InvokeAsync<string>("editorHelpers.getContent", EditorRef);
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_shouldRefreshEditor)
+        {
+            _shouldRefreshEditor = false;
+            // Use a small delay to ensure DOM is ready if needed, or just call directly.
+            // Direct call is usually safe in OnAfterRender.
+            try 
+            {
+                await JSRuntime.InvokeVoidAsync("editorHelpers.setContent", EditorRef, CurrentJournal.Content ?? "");
+            }
+            catch(Exception ex) 
+            {
+                Console.WriteLine($"Error setting content: {ex.Message}");
+            }
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            ErrorMessage = null;
+            CurrentJournal = await JournalsService.GetJournalAsync(EntryDate) ?? new Journals { Date = EntryDate };
+            
+            // Load Tags
+            await TagsService.Init();
+            AvailableTags = await TagsService.GetTagsAsync();
+            
+            // Load Moods (Detail 1 and Detail 2)
+            if (CurrentJournal.MoodDetailId.HasValue)
+                Detail1 = await MoodsService.GetMoodByIdAsync(CurrentJournal.MoodDetailId.Value);
+            else 
+                Detail1 = null;
+            
+            if (CurrentJournal.SecondaryMoodDetailId1.HasValue)
+                Detail2 = await MoodsService.GetMoodByIdAsync(CurrentJournal.SecondaryMoodDetailId1.Value);
+            else
+                Detail2 = null;
+
+            if (CurrentJournal.Id != 0)
+            {
+                SelectedTags = await JournalTagsService.GetTagsForJournalAsync(CurrentJournal.Id);
+            }
+            else
+            {
+                SelectedTags = new List<Tags>();
+            }
+            
+            _shouldRefreshEditor = true;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading journal: {ex.GetType().Name}: {ex.Message}";
+            Console.WriteLine(ex);
+        }
+    }
+
+    private MoodDetail? Detail1;
+    private MoodDetail? Detail2;
+
+    private string CategoryEmoji => GetCategoryEmoji(CurrentJournal.Mood);
+    
+    // Shows "Happy, Excited" or "No specific mood"
+    private string GetMoodDetailsString()
+    {
+        var names = new List<string>();
+        if (Detail1 != null) names.Add($"{Detail1.Name}");
+        if (Detail2 != null) names.Add($"{Detail2.Name}");
+        
+        return names.Any() ? string.Join(", ", names) : "Select details...";
+    }
+
+    [Inject] IMoodsService MoodsService { get; set; } = default!;
+
+    private void NavigateToMoods()
+    {
+        _ = SaveAndNavigate();
+    }
+
+    private async Task SaveAndNavigate()
+    {
+        await UpdateContentModel();
+        await JournalsService.SaveJournalAsync(CurrentJournal);
+        NavigationManager.NavigateTo($"/moods/{EntryDate:yyyy-MM-dd}");
+    }
+
+    private string GetCategoryEmoji(Moods mood)
+    {
+        return mood switch
+        {
+            Moods.Negative => "😔",
+            Moods.Neutral => "😐",
+            Moods.Positive => "😊",
+            _ => "😐"
+        };
+    }
+    
+    private bool IsTagSelected(Tags tag)
+    {
+        return SelectedTags.Any(t => t.Id == tag.Id);
+    }
+    
+    private void ToggleTag(Tags tag)
+    {
+        var existing = SelectedTags.FirstOrDefault(t => t.Id == tag.Id);
+        if (existing != null)
+        {
+            SelectedTags.Remove(existing);
+        }
+        else
+        {
+            SelectedTags.Add(tag);
+        }
+    }
+
+    private async Task AddTag()
+    {
+        if (string.IsNullOrWhiteSpace(NewTagName)) return;
+
+        var tagName = NewTagName.Trim();
+        
+        // Check if tag already selected
+        if (SelectedTags.Any(t => t.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase)))
+        {
+            NewTagName = string.Empty;
+            return;
+        }
+
+        // Check if exists in DB or create new
+        var tag = await TagsService.GetTagByNameAsync(tagName);
+        if (tag == null)
+        {
+            tag = new Tags 
+            { 
+                Name = tagName, 
+                IsPrebuilt = false
+            };
+            await TagsService.SaveTagAsync(tag);
+            // Refresh available tags
+            AvailableTags = await TagsService.GetTagsAsync();
+        }
+
+        if (!IsTagSelected(tag))
+        {
+            SelectedTags.Add(tag);
+        }
+        
+        NewTagName = string.Empty;
+    }
+
+    private void RemoveTag(Tags tag)
+    {
+        SelectedTags.Remove(tag);
+    }
+
+    private async Task HandleTagInputKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await AddTag();
+        }
+    }
+
+    private async Task SaveEntry()
+    {
+        await UpdateContentModel();
+        await JournalsService.SaveJournalAsync(CurrentJournal);
+        
+        // Save Tags
+        await JournalTagsService.RemoveAllTagsFromJournalAsync(CurrentJournal.Id);
+        foreach (var tag in SelectedTags)
+        {
+            await JournalTagsService.AddTagToJournalAsync(CurrentJournal.Id, tag.Id);
+        }
+        
+    }
+
+    private async Task DeleteEntry()
+    {
+        if (CurrentJournal.Id != 0)
+        {
+            await JournalTagsService.RemoveAllTagsFromJournalAsync(CurrentJournal.Id);
+            await JournalsService.DeleteJournalAsync(CurrentJournal);
+            CurrentJournal = new Journals { Date = EntryDate };
+            SelectedTags.Clear();
+            _shouldRefreshEditor = true;
+        }
+    }
+}

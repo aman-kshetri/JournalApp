@@ -1,4 +1,4 @@
-﻿using SQLite;
+using SQLite;
 
 namespace JournalApp.Models;
 
@@ -22,11 +22,11 @@ public class Journals
     public Moods? SecondaryMoodTwo { get; set; }
 
     public int? MoodDetailId { get; set; }
-
+    
     public int? SecondaryMoodDetailId1 { get; set; }
     public int? SecondaryMoodDetailId2 { get; set; }
 
     public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+    public DateTime UpdateAt { get; set; }
 
 }

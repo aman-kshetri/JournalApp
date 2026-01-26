@@ -1,11 +1,11 @@
-﻿@using JournalApp.Services
+@using JournalApp.Services
 @inject IUsersService UsersService
 
 <div class="login-overlay">
     <div class="login-container">
         <h2>@(IsSetupMode ? "Create PIN" : "Welcome Back")</h2>
         <p>@(IsSetupMode ? "Set a 4-digit PIN to secure your journal" : "Enter your PIN to unlock")</p>
-
+        
         <div class="pin-display">
             @for (int i = 0; i < 4; i++)
             {
@@ -23,7 +23,7 @@
             <button class="key-btn" @onclick="() => AppendNumber(0)">0</button>
             <button class="key-btn action-btn" @onclick="Backspace">⌫</button>
         </div>
-
+        
         @if (IsError)
         {
             <p class="error-msg">Incorrect PIN</p>
@@ -49,7 +49,7 @@
         {
             IsError = false;
             Pin += number.ToString();
-
+            
             if (Pin.Length == 4)
             {
                 await ValidatePin();

@@ -1,4 +1,4 @@
-﻿using JournalApp.Models;
+using JournalApp.Models;
 
 namespace JournalApp.Services;
 

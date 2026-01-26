@@ -1,0 +1,452 @@
+@page "/calendar"
+@using JournalApp.Models
+@using JournalApp.Services
+@inject IJournalsServices JournalsService
+@inject IPdfService PdfService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<style>
+    /* Only add minimal styles for the new arrangement */
+    .header-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .calendar-nav {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .nav-btn {
+        background: transparent;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+    }
+
+    .view-toggle-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .export-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-left: auto;
+    }
+
+    .search-section {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    /* Keep existing styles */
+    .search-select {
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        outline: none;
+        min-width: 200px;
+    }
+
+        .search-input:focus {
+            border-color: #6200ea;
+        }
+
+    .clear-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #666;
+        font-size: 1.2em;
+        padding: 0 8px;
+    }
+
+    .export-btn {
+        padding: 8px 16px;
+        background-color: #6200ea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .export-btn:hover {
+            background-color: #3700b3;
+        }
+
+    .checkbox-col {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+    }
+
+    .custom-checkbox {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    /* Modal styles unchanged */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .modal-actions {
+        margin-top: 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+</style>
+
+<div class="calendar-container">
+    <!-- REARRANGED: Header with all controls together -->
+    <div class="header-controls">
+        @if (!IsListView)
+        {
+            <!-- Calendar View Controls -->
+            <div class="calendar-nav">
+                <button class="nav-btn" @onclick="PreviousMonth">❮</button>
+                <h2 style="margin:0; min-width: 160px; text-align:center;">
+                    @CurrentMonth.ToString("MMMM yyyy")
+                </h2>
+                <button class="nav-btn" @onclick="NextMonth">❯</button>
+            </div>
+        }
+        else
+        {
+            <h2 style="margin:0;">My Journal</h2>
+        }
+
+        <div class="view-toggle-container">
+            <!-- View Toggle -->
+            <div style="display:flex; border-radius:8px; overflow:hidden; border:1px solid #ddd;">
+                <button class="toggle-option @(!IsListView ? "active" : "")"
+                        @onclick="() => SetView(false)"
+                        style="padding:8px 16px; border:none; background:@(!IsListView ? "#6200ea" : "transparent"); color:@(!IsListView ? "white" : "inherit"); cursor:pointer;">
+                    Calendar
+                </button>
+                <button class="toggle-option @(IsListView ? "active" : "")"
+                        @onclick="() => SetView(true)"
+                        style="padding:8px 16px; border:none; background:@(IsListView ? "#6200ea" : "transparent"); color:@(IsListView ? "white" : "inherit"); cursor:pointer;">
+                    List
+                </button>
+            </div>
+
+            <!-- Export Section - Only in List View -->
+            @if (IsListView)
+            {
+                <div class="export-info">
+                    <button class="export-btn" @onclick="InitiateExport">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+                            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
+                        </svg>
+                        Export (@SelectedJournalIds.Count)
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- REARRANGED: Search Section - Only in List View -->
+    @if (IsListView)
+    {
+        <div class="search-section">
+            <select @bind="FilterType" class="search-select">
+                <option value="Content">Content</option>
+                <option value="Tags">Tags</option>
+                <option value="Mood">Mood</option>
+            </select>
+            <input @bind="SearchQuery" @bind:event="oninput" @onkeyup="HandleSearchInput"
+                   placeholder="Search journal entries..."
+                   class="search-input" />
+            @if (!string.IsNullOrWhiteSpace(SearchQuery))
+            {
+                <button class="clear-btn" @onclick="ClearSearch">✖</button>
+            }
+        </div>
+    }
+
+    <!-- Content Area - KEEP EXISTING STRUCTURE -->
+    @if (IsListView)
+    {
+        <div class="timeline-view">
+            @foreach (var entry in TimelineEntries)
+            {
+                <div class="timeline-card" style="display: flex; flex-direction: row; gap: 8px;">
+                    <div class="checkbox-col" @onclick:stopPropagation>
+                        <input type="checkbox" class="custom-checkbox"
+                               checked="@SelectedJournalIds.Contains(entry.Id)"
+                               @onchange="() => ToggleSelection(entry.Id)" />
+                    </div>
+
+                    <div style="flex:1; display:flex; gap:16px;" @onclick="() => OpenJournal(entry.Date)">
+                        <div class="timeline-date">
+                            <span class="day">@entry.Date.Day</span>
+                            <span class="month">@entry.Date.ToString("MMM")</span>
+                        </div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <span class="weekday">@entry.Date.DayOfWeek</span>
+                                <span class="mood">@GetMoodEmoji(entry.Mood)</span>
+                            </div>
+                            <div class="timeline-preview">
+                                @(GetPreviewText(entry.Content))
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (!IsSearching)
+            {
+                <button class="load-more-btn" @onclick="LoadMoreEntries">Load More</button>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="calendar-grid">
+            <div class="weekday">Sun</div>
+            <div class="weekday">Mon</div>
+            <div class="weekday">Tue</div>
+            <div class="weekday">Wed</div>
+            <div class="weekday">Thu</div>
+            <div class="weekday">Fri</div>
+            <div class="weekday">Sat</div>
+
+            @for (int i = 0; i < OffsetDays; i++)
+            {
+                <div class="empty-day"></div>
+            }
+
+            @for (int day = 1; day <= DaysInMonth; day++)
+            {
+                var date = new DateTime(CurrentMonth.Year, CurrentMonth.Month, day);
+                var entry = JournalEntries.FirstOrDefault(j => j.Date.Date == date.Date);
+                var hasEntry = entry != null;
+                var isFuture = date > DateTime.Today;
+
+                <div class="day @(hasEntry ? "has-entry" : "") @(IsToday(date) ? "today" : "") @(isFuture ? "future" : "")"
+                     @onclick="() => { if (!isFuture) OpenJournal(date); }">
+                    <span class="day-number">@day</span>
+                    @if (hasEntry && entry != null)
+                    {
+                        <span class="mood-indicator">@GetMoodEmoji(entry.Mood)</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (ShowPasswordModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h3>Export PDF</h3>
+            <p>Enter a password to protect this file (optional):</p>
+            <input type="password" @bind="PdfPassword" class="search-input" style="width: 100%; margin-top: 8px;" placeholder="Password" />
+            <div class="modal-actions">
+                <button class="btn btn-secondary" @onclick="CancelExport">Cancel</button>
+                <button class="btn btn-primary" @onclick="ConfirmExportPdf">Download</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DateTime CurrentMonth { get; set; } = DateTime.Today;
+    private List<Journals> JournalEntries { get; set; } = new List<Journals>();
+    private List<Journals> TimelineEntries { get; set; } = new List<Journals>();
+
+    private bool IsListView { get; set; } = true;
+    private int CurrentPage { get; set; } = 0;
+    private const int PageSize = 10;
+
+    // Search
+    private string SearchQuery { get; set; } = "";
+    private string FilterType { get; set; } = "Content";
+    private bool IsSearching => !string.IsNullOrWhiteSpace(SearchQuery);
+
+    private async Task HandleSearchInput(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await PerformSearch();
+        }
+        else if (string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            await ClearSearch();
+        }
+    }
+
+    private async Task PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery)) return;
+
+        TimelineEntries = await JournalsService.SearchJournalsAsync(SearchQuery, FilterType);
+    }
+
+    private async Task ClearSearch()
+    {
+        SearchQuery = "";
+        CurrentPage = 0;
+        TimelineEntries.Clear();
+        await LoadEntries();
+        await LoadMoreEntries();
+    }
+
+    private int DaysInMonth => DateTime.DaysInMonth(CurrentMonth.Year, CurrentMonth.Month);
+    private int OffsetDays => (int)new DateTime(CurrentMonth.Year, CurrentMonth.Month, 1).DayOfWeek;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEntries();
+        await LoadMoreEntries();
+    }
+
+    private async Task LoadEntries()
+    {
+        JournalEntries = await JournalsService.GetJournalsAsync();
+    }
+
+    private async Task LoadMoreEntries()
+    {
+        var newEntries = await JournalsService.GetJournalsAsync(CurrentPage * PageSize, PageSize);
+        if (newEntries.Any())
+        {
+            TimelineEntries.AddRange(newEntries);
+            CurrentPage++;
+        }
+    }
+
+    private void SetView(bool isList)
+    {
+        IsListView = isList;
+    }
+
+    private async Task PreviousMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(-1);
+        await LoadEntries();
+    }
+
+    private async Task NextMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(1);
+        await LoadEntries();
+    }
+
+    private void OpenJournal(DateTime date)
+    {
+        NavigationManager.NavigateTo($"journal/{date.ToString("yyyy-MM-dd")}");
+    }
+
+    private bool IsToday(DateTime date)
+    {
+        return date.Date == DateTime.Today;
+    }
+
+    private string GetMoodEmoji(Moods mood)
+    {
+        return mood switch
+        {
+            Moods.Negative => "😔",
+            Moods.Neutral => "😐",
+            Moods.Positive => "😊",
+            _ => "😐"
+        };
+    }
+
+    private string GetPreviewText(string? htmlContent)
+    {
+        if (string.IsNullOrWhiteSpace(htmlContent)) return "No content...";
+        return System.Text.RegularExpressions.Regex.Replace(htmlContent, "<.*?>", String.Empty);
+    }
+
+    private HashSet<int> SelectedJournalIds { get; set; } = new HashSet<int>();
+    private bool ShowPasswordModal { get; set; } = false;
+    private string PdfPassword { get; set; } = "";
+
+    private void ToggleSelection(int id)
+    {
+        if (SelectedJournalIds.Contains(id))
+            SelectedJournalIds.Remove(id);
+        else
+            SelectedJournalIds.Add(id);
+    }
+
+    private void InitiateExport()
+    {
+        if (!SelectedJournalIds.Any())
+        {
+            JSRuntime.InvokeVoidAsync("alert", "Please select at least one journal to export.");
+            return;
+        }
+
+        PdfPassword = "";
+        ShowPasswordModal = true;
+    }
+
+    private void CancelExport()
+    {
+        ShowPasswordModal = false;
+    }
+
+    private async Task ConfirmExportPdf()
+    {
+        ShowPasswordModal = false;
+
+        var journalsToExport = JournalEntries.Where(j => SelectedJournalIds.Contains(j.Id)).OrderByDescending(j => j.Date).ToList();
+        var pdfBytes = PdfService.GenerateJournalPdf(journalsToExport, PdfPassword, "My Journal Export");
+
+        var fileName = $"journal_export_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "application/pdf", pdfBytes);
+    }
+}

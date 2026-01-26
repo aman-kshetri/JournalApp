@@ -1,4 +1,4 @@
-﻿using JournalApp.Data;
+using JournalApp.Data;
 using JournalApp.Models;
 
 namespace JournalApp.Services;
@@ -36,7 +36,7 @@ public class MoodsService : IMoodsService
         await Init();
         await _db.Database.InsertAsync(mood);
     }
-
+    
     public async Task<MoodDetail?> GetMoodByIdAsync(int id)
     {
         await Init();
