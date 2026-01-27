@@ -385,7 +385,7 @@
 
     private void OpenJournal(DateTime date)
     {
-        NavigationManager.NavigateTo($"journal/{date.ToString("yyyy-MM-dd")}");
+        NavigationManager.NavigateTo($"/journal/view/{date:yyyy-MM-dd}");
     }
 
     private bool IsToday(DateTime date)

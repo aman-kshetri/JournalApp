@@ -1,0 +1,129 @@
+﻿@page "/journal/view/{Date:datetime}"
+@using JournalApp.Models
+@using JournalApp.Services
+@inject IJournalsServices JournalsService
+@inject IJournalTagsServices JournalTagsService
+@inject ITagsServices TagsService
+@inject IMoodsService MoodsService
+@inject NavigationManager NavigationManager
+
+<div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+
+    <!-- Header -->
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+        <button @onclick="GoBack" style="background: none; border: 1px solid #ddd; padding: 8px 16px; border-radius: 8px; cursor: pointer;">
+            ← Back to Journal List
+        </button>
+        <h2 style="margin: 0;">@EntryDate.ToString("dddd, MMMM dd, yyyy")</h2>
+    </div>
+
+    <!-- Mood -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+        <span style="font-size: 24px;">@GetMoodEmoji(CurrentJournal.Mood)</span>
+        <span style="font-size: 18px; font-weight: 500;">@CurrentJournal.Mood.ToString()</span>
+        @if (MoodDetails.Any())
+        {
+            <span style="font-size: 14px; color: #666; margin-left: auto;">
+                @string.Join(", ", MoodDetails.Select(m => m.Name))
+            </span>
+        }
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 24px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 24px; min-height: 200px;">
+        @if (string.IsNullOrWhiteSpace(CurrentJournal.Content))
+        {
+            <p style="color: #6c757d; text-align: center; padding: 40px; font-style: italic;">
+                No journal entry for this day.
+            </p>
+        }
+        else
+        {
+            @((MarkupString)CurrentJournal.Content)
+        }
+    </div>
+
+    <!-- Tags -->
+    @if (SelectedTags.Any())
+    {
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 12px; font-size: 16px; color: #333;">Tags</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                @foreach (var tag in SelectedTags)
+                {
+                    <span style="background: #e0e7ff; color: #3730a3; padding: 6px 12px; border-radius: 16px; font-size: 14px;">
+                        @tag.Name
+                    </span>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public DateTime Date { get; set; }
+
+    private Journals CurrentJournal = new();
+    private List<Tags> SelectedTags = new();
+    private List<MoodDetail> MoodDetails = new();
+    private DateTime EntryDate => Date;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load journal
+        CurrentJournal = await JournalsService.GetJournalAsync(EntryDate)
+            ?? new Journals { Date = EntryDate };
+
+        // Load tags if journal exists
+        if (CurrentJournal.Id != 0)
+        {
+            SelectedTags = await JournalTagsService.GetTagsForJournalAsync(CurrentJournal.Id);
+
+            // Load mood details
+            await LoadMoodDetails();
+        }
+    }
+
+    private async Task LoadMoodDetails()
+    {
+        MoodDetails.Clear();
+
+        // Load primary mood detail
+        if (CurrentJournal.MoodDetailId.HasValue)
+        {
+            var detail1 = await MoodsService.GetMoodByIdAsync(CurrentJournal.MoodDetailId.Value);
+            if (detail1 != null)
+                MoodDetails.Add(detail1);
+        }
+
+        // Load secondary mood detail 1
+        if (CurrentJournal.SecondaryMoodDetailId1.HasValue)
+        {
+            var detail2 = await MoodsService.GetMoodByIdAsync(CurrentJournal.SecondaryMoodDetailId1.Value);
+            if (detail2 != null)
+                MoodDetails.Add(detail2);
+        }
+
+        // Load secondary mood detail 2 (if you have this field)
+        if (CurrentJournal.SecondaryMoodDetailId2.HasValue)
+        {
+            var detail3 = await MoodsService.GetMoodByIdAsync(CurrentJournal.SecondaryMoodDetailId2.Value);
+            if (detail3 != null)
+                MoodDetails.Add(detail3);
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/calendar");
+    }
+
+    private string GetMoodEmoji(Moods mood) => mood switch
+    {
+        Moods.Negative => "😔",
+        Moods.Neutral => "😐",
+        Moods.Positive => "😊",
+        _ => "😐"
+    };
+}
