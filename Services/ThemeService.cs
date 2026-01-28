@@ -1,5 +1,5 @@
 using Microsoft.JSInterop;
-using Microsoft.Maui.Storage; // Explicitly add this
+using Microsoft.Maui.Storage;
 
 namespace JournalApp.Services;
 

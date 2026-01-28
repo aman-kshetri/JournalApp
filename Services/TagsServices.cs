@@ -39,7 +39,6 @@ public class TagsServices : ITagsServices
         {
             if (existingTagMap.TryGetValue(name.ToLower(), out var existingTag))
             {
-                // Update existing prebuilt tags if they lack correct flag
                 if (!existingTag.IsPrebuilt)
                 {
                     existingTag.IsPrebuilt = true;

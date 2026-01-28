@@ -14,7 +14,7 @@ public class PdfService : IPdfService
         using var document = new PdfDocument();
         document.Info.Title = title;
 
-        // Apply Password Security if provided
+        // Apply Password Security if needed
         if (!string.IsNullOrWhiteSpace(password))
         {
             document.SecuritySettings.UserPassword = password;
@@ -50,7 +50,6 @@ public class PdfService : IPdfService
 
         foreach (var journal in journals)
         {
-            // Check if we need a new page
             // Simple estimation: if currentY > page.Height - margin, add page
             if (currentY > page.Height - margin - 100)
             {
@@ -73,23 +72,11 @@ public class PdfService : IPdfService
             var content = StripHtml(journal.Content);
             var rect = new XRect(margin, currentY, page.Width - 2 * margin, page.Height - margin - currentY);
             
-            // Measure string
-            // PdfSharp doesn't have auto-wrap in DrawString easily without XTextFormatter, 
-            // but let's try a simple multiline approach or XTextFormatter if available?
-            // PdfSharpCore has XTextFormatter class usually.
-            
             var tf = new PdfSharpCore.Drawing.Layout.XTextFormatter(gfx);
             tf.Alignment = XParagraphAlignment.Left;
-            
-            // Calculate height needed?
-            // For simplicity, we just draw in the remaining box. 
-            // If it overflows, it cuts off (in simple version). 
-            // Better: loop and measure. But let's assume short entries or handle page breaks roughly.
-            
+
             tf.DrawString(content, fontBody, XBrushes.Black, rect);
-            
-            // Estimate height used... not easy with XTextFormatter without measurement.
-            // Let's guess based on length.
+
             var lines = content.Length / 80; // approx chars per line
             var height = (lines + 2) * 15; 
             

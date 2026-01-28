@@ -82,9 +82,6 @@ public class JournalsServices : IJournalsServices
             var tagIds = tags.Select(t => t.Id).ToList();
 
             // 2. Find Journal Ids from JournalTags
-            // SQLite-net-pcl doesn't support complex Contains with lists well in linq-to-sql sometimes,
-            // but let's try standard approach or use raw query if needed.
-            // Raw query is often safer for "IN" clauses with list of ints.
             
             var tagIdsString = string.Join(",", tagIds);
             var querySql = $"SELECT * FROM JournalTags WHERE TagId IN ({tagIdsString})";
@@ -94,8 +91,6 @@ public class JournalsServices : IJournalsServices
 
             if (!journalIds.Any()) return new List<Journals>();
 
-            // 3. Fetch Journals
-             // Again, "IN" clause with raw query or multiple fetches.
              var journalIdsString = string.Join(",", journalIds);
              var journalsQuery = $"SELECT * FROM Journals WHERE Id IN ({journalIdsString}) ORDER BY Date DESC";
              return await _appDatabase.Database.QueryAsync<Journals>(journalsQuery);
